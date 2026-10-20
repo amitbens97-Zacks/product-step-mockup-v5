@@ -4,6 +4,7 @@ import { html, useState, useEffect, useRef, Icon, cx } from '../lib.js';
 import { Panel, Button, IconBtn } from '../components.js';
 import { CATEGORIES, CATEGORY_ORDER, SUGGESTIONS, DEFAULT_HOURLY_RATE, PARTNER, newId } from '../data.js';
 import { CAT_STYLE } from '../theme.js';
+import { anchorSuggestions } from './anchor.js';
 
 let generatedOnce = false;
 
@@ -54,12 +55,14 @@ function ProductLine({ n, product, onChange, onRemove, autoFocus }) {
       <${GrowText} value=${product.description} placeholder="מה הלקוח מקבל בפועל?" onValue=${(v) => onChange({ description: v })} class="mt-0.5 text-[14px] leading-snug text-muted" />
     </div>
     ${product.source === 'ai' && html`<span class="fb-filled-by mt-0.5 h-fit shrink-0"><${Icon} name="pencil" size=${12} />${PARTNER.name}</span>`}
+    ${product.source === 'anchor' && html`<span class="mt-0.5 h-fit shrink-0 rounded-full bg-brand-600 px-2 py-0.5 text-[12px] font-bold text-white">המוצר המרכזי</span>`}
     <${IconBtn} icon="trash-2" label="מחיקה" onClick=${onRemove} class="opacity-60 group-hover:opacity-100" />
   </li>`;
 }
 
-export function CatalogScreen({ products, setProducts, dismissed, setDismissed }) {
+export function CatalogScreen({ products, setProducts, dismissed, setDismissed, anchor }) {
   const [tab, setTab] = useState('entry');
+  const around = anchorSuggestions(anchor);
   const [generating, setGenerating] = useState(!generatedOnce);
   const [focusId, setFocusId] = useState(null);
 
@@ -76,7 +79,7 @@ export function CatalogScreen({ products, setProducts, dismissed, setDismissed }
   const list = products.filter((p) => p.category === tab);
   const adopted = new Set(products.map((p) => p.suggestionId).filter(Boolean));
   // Two suggestions at a time; the next one shows once one is added or removed.
-  const suggestions = SUGGESTIONS[tab].filter((s) => !adopted.has(s.id) && !dismissed.includes(s.id)).slice(0, 2);
+  const suggestions = [...(around[tab] ? [around[tab]] : []), ...SUGGESTIONS[tab]].filter((s) => !adopted.has(s.id) && !dismissed.includes(s.id)).slice(0, 2);
 
   const add = (fields) => {
     const p = blank(tab, fields);

@@ -22,6 +22,7 @@ import { CatalogScreen } from './screens/catalog.js';
 import { PricingScreen } from './screens/pricing.js';
 import { IdentityScreen, DoneView } from './screens/identity.js';
 import { OpeningScreen } from './screens/opening.js';
+import { AnchorScreen, AnchorCard, ANCHOR_QUESTIONS, emptyAnchor, anchorProduct, anchorReason, anchorHead } from './screens/anchor.js';
 import { Funnel, tiersOf } from './funnel.js';
 import { DevPanel } from './devnotes.js';
 import { RAW_FIELDS, STEP, PARTNER, scenarioProducts } from './data.js';
@@ -37,10 +38,15 @@ const markOpened = (on = true) => {
     on ? localStorage.setItem(OPENED_KEY, '1') : localStorage.removeItem(OPENED_KEY);
   } catch {}
 };
-const PARTS = ['מה ידוע', 'סל המוצרים', 'תמחור', 'סיכום'];
+// Screens: 0 מה ידוע, 1 המוצר המרכזי (five questions), 2 סל המוצרים, 3 תמחור, 4 סיכום.
+const ANCHOR = 1;
+const BASKET = 2;
+const SUMMARY = 4;
+const PARTS = ['מה ידוע', 'המוצר המרכזי', 'סל המוצרים', 'תמחור', 'סיכום'];
 // The parts as the opening screen lists them: name, and what happens there.
 const PARTS_DESC = [
   ['מה ידוע', 'מאשרים את מה שכבר כתבנו'],
+  ['המוצר המרכזי', 'המוצר שהעסק בנוי סביבו'],
   ['סל המוצרים', 'מוצרים בארבע קטגוריות'],
   ['תמחור', 'מחיר ועלות לכל מוצר'],
   ['סיכום', 'תעודת הזהות המוצרית'],
@@ -51,7 +57,8 @@ const OPENING_MESSAGE = 'בשלב הזה נבנה יחד את סל המוצרי�
 // one help line, and the primary label from the button dictionary.
 const HEAD = [
   { eyebrow: 'חומרי הגלם', title: ['מה כבר ', 'ידוע', ' על העסק?'], sub: 'מילאנו מהשלבים הקודמים. נעבור, נדייק ונאשר, ועל זה נבנה את המוצרים.', next: 'המשך' },
-  { eyebrow: 'סל המוצרים', title: ['בונים את ', 'סל המוצרים', ''], sub: 'ארבע קטגוריות, אף אחת לא חובה. אפשר להתחיל ממוצר אחד.', next: 'המשך' },
+  { eyebrow: 'המוצר המרכזי', title: ['', '', ''], sub: '', next: 'המשך' },
+  { eyebrow: 'סל המוצרים', title: ['בונים ', 'סביבו', ' את הסל'], sub: 'מה מוביל אל המוצר המרכזי, ומה בא אחריו. אף קטגוריה לא חובה, ואפשר להמשיך גם עם מוצר אחד.', next: 'המשך' },
   { eyebrow: 'תמחור', title: ['', 'מחיר', ' לכל מוצר'], sub: 'מחיר ועלות לכל מוצר, ונראה מיד כמה נשאר לך.', next: 'המשך' },
   { eyebrow: 'תעודת הזהות המוצרית', title: ['ככה נראה ', 'סל המוצרים', ' שלך'], sub: '', next: 'סיום השלב' },
 ];
@@ -59,6 +66,7 @@ const HEAD = [
 // After about a minute with no input, the partner offers an example (can be turned off in settings).
 const STUCK = [
   'נתקעים? אפשר לאשר את מה שנראה נכון, ולדייק את השאר בהמשך. שום דבר לא ננעל.',
+  'נתקעים? אפשר להתחיל ממה שכבר עושים היום ללקוחות, ולדייק אחר כך.',
   'נתקעים? דוגמה מהשטח: יועצת עסקית התחילה משיחת אבחון חינם, והמשיכה לליווי של 3 חודשים.',
   'נתקעים? כלל אצבע: מחיר שמשאיר לפחות חצי ממנו כרווח. את מוצר הכניסה אפשר לתת בחינם.',
   'נתקעים? אפשר לסיים עכשיו. כל כרטיס נשאר פתוח לעריכה גם אחרי השלב.',
@@ -105,6 +113,8 @@ function App({ view, onViewChange }) {
   const [confirmed, setConfirmed] = useState(() => from('confirmed', {}));
   const [products, setProducts] = useState(() => from('products', []));
   const [dismissed, setDismissed] = useState(() => from('dismissed', []));
+  const [anchor, setAnchor] = useState(() => from('anchor', emptyAnchor()));
+  const [anchorQ, setAnchorQ] = useState(() => from('anchorQ', 0));
   const [doneStage, setDoneStage] = useState(() => (from('doneStage', -1) >= 3 ? 3 : -1)); // -1 not finished, 0..3 progress
   const [save, setSave] = useState('');
   const [undo, setUndo] = useState(null);
@@ -131,7 +141,7 @@ function App({ view, onViewChange }) {
     setSave('saving');
     const t = setTimeout(() => setSave('saved'), 700);
     return () => clearTimeout(t);
-  }, [raw, confirmed, products]);
+  }, [raw, confirmed, products, anchor]);
 
   // "ביטול" stays for 5 seconds after anything done automatically.
   const offerUndo = (text, revert) => setUndo({ id: Date.now(), text, revert });
@@ -146,6 +156,7 @@ function App({ view, onViewChange }) {
     setUndo(null);
     setScreen(i);
     setMaxReached((m) => Math.max(m, i));
+    if (i === ANCHOR && screen > ANCHOR) setAnchorQ(0);
     setStuck(false);
     canvas.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -189,7 +200,42 @@ function App({ view, onViewChange }) {
 
   const opening = screen === -1 && doneStage < 0;
   const working = doneStage < 0 && !opening;
-  const nextDisabled = working && screen >= 1 && products.length === 0;
+  const anchorWhy = working && screen === ANCHOR ? anchorReason(anchor, anchorQ) : null;
+  const nextDisabled = working && (screen === ANCHOR ? !!anchorWhy : screen >= BASKET && products.length === 0);
+
+  // The anchor enters the basket (and the funnel) when its questions are done.
+  const commitAnchor = (a = anchor) =>
+    setProducts((l) => {
+      const old = l.find((p) => p.id === 'anchor');
+      const p = anchorProduct(a, old);
+      return old ? l.map((x) => (x.id === 'anchor' ? p : x)) : [p, ...l];
+    });
+  const setAnchorField = (patch) => setAnchor((a) => ({ ...a, ...patch }));
+  // A single choice moves on by itself, with "ביטול" for 5 seconds.
+  const pickAnchor = (patch) => {
+    const before = anchor;
+    const q = anchorQ;
+    setAnchor((a) => ({ ...a, ...patch }));
+    setTimeout(() => {
+      setAnchorQ(q + 1);
+      offerUndo('עברנו לשאלה הבאה', () => {
+        setAnchor(before);
+        setAnchorQ(q);
+      });
+    }, 600);
+  };
+  const back = () => {
+    if (screen === ANCHOR && anchorQ > 0) return setAnchorQ(anchorQ - 1);
+    if (screen === BASKET) {
+      setAnchorQ(ANCHOR_QUESTIONS - 1);
+      return go(ANCHOR);
+    }
+    go(screen - 1);
+  };
+  useEffect(() => {
+    if (screen === ANCHOR) setMaxReached((m) => Math.max(m, ANCHOR));
+  }, [anchorQ]);
+
   const next = () => {
     if (opening) {
       markOpened();
@@ -198,7 +244,9 @@ function App({ view, onViewChange }) {
     if (!working) return showToast(`כאן נפתח השלב הבא: ${STEP.next.name}`, 'arrow-left');
     if (nextDisabled) return;
     if (screen === 0) setConfirmed(Object.fromEntries(RAW_FIELDS.map((f) => [f.key, true])));
-    if (screen < 3) go(screen + 1);
+    if (screen === ANCHOR && anchorQ < ANCHOR_QUESTIONS - 1) return setAnchorQ(anchorQ + 1);
+    if (screen === ANCHOR) commitAnchor();
+    if (screen < SUMMARY) go(screen + 1);
     else finish();
   };
 
@@ -209,7 +257,7 @@ function App({ view, onViewChange }) {
     const id = qs.get('scenario');
     if (id) loadScenario(id, true);
     const at = Number(qs.get('screen'));
-    if (id && at >= 0 && at < 3 && qs.has('screen')) go(at);
+    if (id && at >= 0 && at < SUMMARY && qs.has('screen')) go(at);
     if (id && qs.has('done')) finish();
   }, []);
 
@@ -246,7 +294,7 @@ function App({ view, onViewChange }) {
     };
   }, [screen, working]);
 
-  const snapshot = () => ({ screen, maxReached, raw, filled, confirmed, products, dismissed, doneStage });
+  const snapshot = () => ({ screen, maxReached, raw, filled, confirmed, products, dismissed, anchor, anchorQ, doneStage });
   useEffect(() => {
     window.__flowbizSnapshot = snapshot;
   });
@@ -256,16 +304,28 @@ function App({ view, onViewChange }) {
   };
 
   const loadScenario = (id, quiet) => {
-    setProducts(scenarioProducts(id));
+    // The sample basket's premium program is the anchor, defined through its five questions.
+    const sample = {
+      kind: 'service', format: 'one', name: 'תוכנית ליווי 90 יום 1:1', tier: 'premium', filled: {},
+      attrs: { duration: '3 חודשים', sessions: '12', length: '60 דקות', where: 'משולב', who: 'אישי' },
+      steps: ['פגישת אבחון ומיפוי', 'אסטרטגיה כתובה ל-90 יום', 'הקמת הקמפיינים והתוכן', 'בקרה ושיפור כל שבועיים', 'סיכום ותוכנית להמשך'],
+    };
+    const list = scenarioProducts(id);
+    const i = list.findIndex((p) => p.name === sample.name);
+    if (i >= 0) list[i] = { ...anchorProduct(sample, list[i]), category: list[i].category };
+    else if (id !== 'premium-only') list.unshift(anchorProduct(sample));
+    setAnchor(sample);
+    setAnchorQ(ANCHOR_QUESTIONS - 1);
+    setProducts(list);
     setConfirmed(Object.fromEntries(RAW_FIELDS.map((f) => [f.key, true])));
-    setMaxReached(3);
-    go(3);
+    setMaxReached(SUMMARY);
+    go(SUMMARY);
     showToast(quiet ? 'מילאנו את סל המוצרים הקיים' : 'נטען תרחיש דוגמה', quiet ? 'package' : 'flask-conical');
   };
 
-  const h = HEAD[Math.max(screen, 0)];
+  const h = screen === ANCHOR ? { ...HEAD[ANCHOR], ...anchorHead(anchorQ, anchor), eyebrow: `המוצר המרכזי · שאלה ${anchorQ + 1} מתוך ${ANCHOR_QUESTIONS}` } : HEAD[Math.max(screen, 0)];
   const message = opening ? OPENING_MESSAGE : stuck ? STUCK[screen] : PARTNER_MESSAGES[screen];
-  const msgKey = `${screen}-${stuck}`;
+  const msgKey = `${screen}-${stuck}`; // one message per part, not per question
   const unread = (working || opening) && !read.has(msgKey);
   const xf = RAW_FIELDS.find((f) => f.key === 'xFactor');
   const partnerAction =
@@ -273,8 +333,8 @@ function App({ view, onViewChange }) {
       ? html`<${FillButton} onClick=${() => fillRawField('xFactor', xf.apply)} />`
       : null;
   // The side panel shows only once there is something in the basket to show.
-  const showBasket = working && screen >= 1 && screen < 3;
-  const reason = nextDisabled ? 'צריך לפחות מוצר אחד כדי להמשיך' : null;
+  const showBasket = working && screen >= ANCHOR && screen < SUMMARY;
+  const reason = !nextDisabled ? null : anchorWhy || 'צריך לפחות מוצר אחד כדי להמשיך';
   const hint = opening
     ? ''
     : !working
@@ -300,23 +360,23 @@ function App({ view, onViewChange }) {
       step=${STEP}
       tools=${tools}
       onSkip=${working || opening ? skip : null}
-      progress=${html`<${Progress} parts=${PARTS} current=${opening ? -1 : working ? screen : 3} maxReached=${opening ? -1 : working ? maxReached : 3} onJump=${go} done=${!working && !opening} />`}
+      progress=${html`<${Progress} parts=${PARTS} current=${opening ? -1 : working ? screen : SUMMARY} maxReached=${opening ? -1 : working ? maxReached : SUMMARY} onJump=${go} done=${!working && !opening} />`}
     />
 
     <div class="fb-notebook fb-margin flex min-h-0 flex-1">
       <main class="relative flex min-w-0 flex-1 flex-col">
         <div ref=${canvas} class="thin-scroll flex-1 overflow-y-auto">
-          <div class=${cx('mx-auto px-4 md:px-10', working && screen === 3 ? 'pb-1 pt-3' : 'pb-6 pt-6', !working || screen === 3 ? 'max-w-6xl' : screen >= 1 ? 'max-w-5xl' : 'max-w-4xl', opening && 'flex min-h-full items-center md:py-10 [&>*]:w-full')}>
+          <div class=${cx('mx-auto px-4 md:px-10', working && screen === SUMMARY ? 'pb-1 pt-3' : 'pb-6 pt-6', !working || screen === SUMMARY ? 'max-w-6xl' : screen >= ANCHOR ? 'max-w-5xl' : 'max-w-4xl', opening && 'flex min-h-full items-center md:py-10 [&>*]:w-full')}>
             ${opening && html`<${OpeningScreen} parts=${PARTS_DESC} onHave=${() => loadScenario('full', true)} />`}
             ${working &&
-            html`<div key=${screen} class="rise">
+            html`<div key=${screen === ANCHOR ? `a${anchorQ}` : screen} class="rise">
               <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between md:gap-8">
                 <${StepHeading} n=${screen + 1} eyebrow=${h.eyebrow} title=${h.title} sub=${h.sub}>
                 <//>
               </div>
               ${showBasket &&
               html`<button type="button" class="fb-note-tab mb-5 me-3 cursor-pointer md:hidden" onClick=${() => setSheet(true)}>
-                <${Icon} name="chart-no-axes-column" size=${16} />סל המוצרים שלך · ${products.length}
+                <${Icon} name="chart-no-axes-column" size=${16} />${screen === ANCHOR ? 'המוצר המרכזי שלך' : `סל המוצרים שלך · ${products.length}`}
               </button>`}
               ${screen === 0 &&
               html`<${RawScreen}
@@ -326,10 +386,11 @@ function App({ view, onViewChange }) {
                 filled=${filled}
                 undoFill=${undoFill}
               />`}
-              ${screen === 1 && html`<${CatalogScreen} products=${products} setProducts=${setProducts} dismissed=${dismissed} setDismissed=${setDismissed} />`}
-              ${screen === 2 &&
-              html`<${PricingScreen} products=${products} setProducts=${setProducts} />`}
+              ${screen === ANCHOR && html`<${AnchorScreen} anchor=${anchor} set=${setAnchorField} q=${anchorQ} pick=${pickAnchor} />`}
+              ${screen === BASKET && html`<${CatalogScreen} products=${products} setProducts=${setProducts} dismissed=${dismissed} setDismissed=${setDismissed} anchor=${anchor} />`}
               ${screen === 3 &&
+              html`<${PricingScreen} products=${products} setProducts=${setProducts} />`}
+              ${screen === SUMMARY &&
               html`<${IdentityScreen} products=${products} setProducts=${setProducts} />`}
             </div>`}
             ${!working && !opening && html`<${DoneView} products=${products} stage=${doneStage} />`}
@@ -346,7 +407,7 @@ function App({ view, onViewChange }) {
 
       ${showBasket &&
       html`<aside class="no-print hidden w-[330px] shrink-0 overflow-y-auto thin-scroll py-8 pe-8 ps-2 xl:block">
-        <${BasketPanel} products=${products} />
+        ${screen === ANCHOR ? html`<${AnchorCard} anchor=${anchor} setTier=${(t) => setAnchorField({ tier: t })} />` : html`<${BasketPanel} products=${products} />`}
       </aside>`}
     </div>
 
@@ -354,12 +415,12 @@ function App({ view, onViewChange }) {
       back=${opening
         ? null
         : working
-        ? screen > 0 && html`<${Button} variant="secondary" onClick=${() => go(screen - 1)}>חזרה <${Icon} name="arrow-right" size=${18} /><//>`
-        : html`<${Button} variant="secondary" onClick=${() => go(3)}>חזרה <${Icon} name="arrow-right" size=${18} /><//>`}
+        ? screen > 0 && html`<${Button} variant="secondary" onClick=${back}>חזרה <${Icon} name="arrow-right" size=${18} /><//>`
+        : html`<${Button} variant="secondary" onClick=${() => go(SUMMARY)}>חזרה <${Icon} name="arrow-right" size=${18} /><//>`}
       extra=${html`
         ${showBasket &&
-        html`<${Button} variant="secondary" class="xl:hidden max-md:hidden" onClick=${() => setSheet(true)}>סל המוצרים שלך <${Icon} name="chart-no-axes-column" size=${16} /><//>`}
-        ${working && screen === 3 && html`<${Button} variant="secondary" class="max-sm:hidden" onClick=${() => window.print()}>הורדה <${Icon} name="download" size=${16} /><//>`}
+        html`<${Button} variant="secondary" class="xl:hidden max-md:hidden" onClick=${() => setSheet(true)}>${screen === ANCHOR ? 'המוצר המרכזי שלך' : 'סל המוצרים שלך'} <${Icon} name="chart-no-axes-column" size=${16} /><//>`}
+        ${working && screen === SUMMARY && html`<${Button} variant="secondary" class="max-sm:hidden" onClick=${() => window.print()}>הורדה <${Icon} name="download" size=${16} /><//>`}
       `}
       status=${html`<${Status}
         undo=${undo}
@@ -371,7 +432,7 @@ function App({ view, onViewChange }) {
         save=${working ? save : ''}
         hint=${hint}
       />`}
-      primary=${html`<${PrimaryButton} label=${opening ? 'מתחילים' : working ? h.next : 'לשלב הבא'} onClick=${next} disabled=${nextDisabled} check=${working && screen === 3} />`}
+      primary=${html`<${PrimaryButton} label=${opening ? 'מתחילים' : working ? h.next : 'לשלב הבא'} onClick=${next} disabled=${nextDisabled} check=${working && screen === SUMMARY} />`}
     />
 
     ${sheet &&
@@ -381,7 +442,7 @@ function App({ view, onViewChange }) {
         <div class="mb-1 flex justify-end">
           <button type="button" aria-label="סגירה" class="rounded-lg p-1.5 text-muted hover:bg-white cursor-pointer" onClick=${() => setSheet(false)}><${Icon} name="x" size=${18} /></button>
         </div>
-        <${BasketPanel} products=${products} />
+        ${screen === ANCHOR ? html`<${AnchorCard} anchor=${anchor} setTier=${(t) => setAnchorField({ tier: t })} />` : html`<${BasketPanel} products=${products} />`}
       </div>
     </div>`}
 
