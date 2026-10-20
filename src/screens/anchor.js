@@ -42,33 +42,39 @@ const NAMES = {
   club: ['מועדון שיווק חודשי', 'תוכן שיווקי מוכן כל חודש', 'מנוי תבניות לעסקים'],
 };
 
-// What the customer gets: fixed questions per kind, answered with one tap.
+// What the customer gets: fixed questions per kind, answered with a tap. "multi" rows take
+// several answers ("only" answers clear the rest); every row also takes a value of its own.
 const ATTRS = {
   service: [
     { key: 'duration', label: 'לכמה זמן?', opts: ['יום אחד', 'חודש', '3 חודשים', '6 חודשים'] },
     { key: 'sessions', label: 'כמה מפגשים?', opts: ['1', '4', '8', '12', '24'] },
     { key: 'length', label: 'כמה זמן כל מפגש?', opts: ['45 דקות', '60 דקות', '90 דקות', '3 שעות'] },
-    { key: 'where', label: 'איפה?', opts: ['זום', 'פרונטלי', 'משולב'] },
-    { key: 'who', label: 'עם מי?', opts: ['אישי', 'קבוצה קטנה'] },
+    { key: 'where', label: 'איפה?', opts: ['זום', 'פרונטלי', 'טלפון'], multi: true },
+    { key: 'who', label: 'עם מי?', opts: ['אישי', 'קבוצה קטנה', 'צוות של לקוח'], multi: true },
+    { key: 'extras', label: 'מה עוד כלול?', opts: ['זמינות ב-WhatsApp', 'חומרי עבודה', 'הקלטות המפגשים', 'תבניות מוכנות'], multi: true },
   ],
   product: [
     { key: 'units', label: 'כמה יחידות?', opts: ['5', '10', '20', '30'] },
-    { key: 'media', label: 'באיזו צורה?', opts: ['וידאו', 'PDF', 'משולב'] },
+    { key: 'media', label: 'באיזו צורה?', opts: ['וידאו', 'PDF', 'הקלטות קול', 'תבניות'], multi: true },
     { key: 'access', label: 'לכמה זמן גישה?', opts: ['3 חודשים', 'שנה', 'לתמיד'] },
-    { key: 'support', label: 'עם ליווי?', opts: ['בלי', 'קבוצת WhatsApp', 'מפגש חודשי'] },
+    { key: 'support', label: 'עם ליווי?', opts: ['בלי', 'קבוצת WhatsApp', 'מפגש חודשי', 'מענה במייל'], multi: true, only: ['בלי'] },
+    { key: 'extras', label: 'מה עוד כלול?', opts: ['תעודה בסיום', 'עדכונים חינם', 'בונוס: שיחת ייעוץ'], multi: true },
   ],
 };
 
 const DEFAULTS = {
-  one: { duration: '3 חודשים', sessions: '12', length: '60 דקות', where: 'משולב', who: 'אישי' },
-  group: { duration: '3 חודשים', sessions: '8', length: '90 דקות', where: 'זום', who: 'קבוצה קטנה' },
-  workshop: { duration: 'יום אחד', sessions: '1', length: '3 שעות', where: 'פרונטלי', who: 'קבוצה קטנה' },
-  consult: { duration: 'יום אחד', sessions: '1', length: '90 דקות', where: 'זום', who: 'אישי' },
-  course: { units: '10', media: 'משולב', access: 'לתמיד', support: 'קבוצת WhatsApp' },
-  kit: { units: '20', media: 'PDF', access: 'לתמיד', support: 'בלי' },
-  physical: { units: '5', media: 'PDF', access: 'לתמיד', support: 'בלי' },
-  club: { units: '5', media: 'משולב', access: 'שנה', support: 'מפגש חודשי' },
+  one: { duration: '3 חודשים', sessions: '12', length: '60 דקות', where: ['זום', 'פרונטלי'], who: ['אישי'], extras: ['זמינות ב-WhatsApp', 'חומרי עבודה'] },
+  group: { duration: '3 חודשים', sessions: '8', length: '90 דקות', where: ['זום'], who: ['קבוצה קטנה'], extras: ['הקלטות המפגשים'] },
+  workshop: { duration: 'יום אחד', sessions: '1', length: '3 שעות', where: ['פרונטלי'], who: ['קבוצה קטנה'], extras: ['חומרי עבודה'] },
+  consult: { duration: 'יום אחד', sessions: '1', length: '90 דקות', where: ['זום'], who: ['אישי'], extras: ['תבניות מוכנות'] },
+  course: { units: '10', media: ['וידאו', 'PDF'], access: 'לתמיד', support: ['קבוצת WhatsApp'], extras: ['עדכונים חינם'] },
+  kit: { units: '20', media: ['תבניות', 'PDF'], access: 'לתמיד', support: ['בלי'], extras: [] },
+  physical: { units: '5', media: ['PDF'], access: 'לתמיד', support: ['בלי'], extras: [] },
+  club: { units: '5', media: ['וידאו', 'תבניות'], access: 'שנה', support: ['מפגש חודשי'], extras: [] },
 };
+
+const show = (v) => (Array.isArray(v) ? v.join(' · ') : v);
+const has = (v) => (Array.isArray(v) ? v.length > 0 : !!v);
 
 const STEPS = {
   one: ['פגישת אבחון ומיפוי', 'אסטרטגיה כתובה ל-90 יום', 'הקמת הקמפיינים והתוכן', 'בקרה ושיפור כל שבועיים', 'סיכום ותוכנית להמשך'],
@@ -84,7 +90,7 @@ const STEPS = {
 const MIN_STEPS = 3;
 const MAX_STEPS = 5;
 
-export const emptyAnchor = () => ({ kind: null, format: null, name: '', attrs: {}, steps: [], tier: 'premium', filled: {} });
+export const emptyAnchor = () => ({ kind: null, format: null, name: '', attrs: {}, custom: {}, steps: [], tier: 'premium', filled: {} });
 
 export function anchorFormat(a) {
   return a.kind && a.format ? FORMATS[a.kind].find((f) => f.id === a.format) : null;
@@ -105,8 +111,8 @@ export function anchorSummary(a) {
   const at = a.attrs;
   const bits =
     a.kind === 'service'
-      ? [at.sessions && `${at.sessions === '1' ? 'מפגש אחד' : `${at.sessions} מפגשים`}${at.length ? ` של ${at.length}` : ''}`, at.duration && at.duration !== 'יום אחד' && `לאורך ${at.duration}`, at.where]
-      : [at.units && `${at.units} יחידות`, at.media, at.access && `גישה ${at.access === 'לתמיד' ? 'לתמיד' : `ל${at.access}`}`];
+      ? [at.sessions && `${at.sessions === '1' ? 'מפגש אחד' : `${at.sessions} מפגשים`}${at.length ? ` של ${at.length}` : ''}`, at.duration && at.duration !== 'יום אחד' && `לאורך ${at.duration}`, Array.isArray(at.where) ? at.where.join(' + ') : at.where]
+      : [at.units && `${at.units} יחידות`, Array.isArray(at.media) ? at.media.join(' + ') : at.media, at.access && `גישה ${at.access === 'לתמיד' ? 'לתמיד' : `ל${at.access}`}`];
   return [f.label, ...bits.filter(Boolean)].join(' · ');
 }
 
@@ -155,7 +161,7 @@ export function anchorHead(q, a) {
     { title: ['מה ', 'מוכרים', ': מוצר או שירות?'], sub: 'שירות הוא הזמן והמומחיות שלך. מוצר הוא משהו שהלקוח מקבל ונשאר אצלו.' },
     { title: ['באיזו ', 'צורה', '?'], sub: 'מסודר לפי מה שמתאים לתחום שלך. הראשון הוא ההמלצה.' },
     { title: ['איך ', 'קוראים', a.kind === 'product' ? ' למוצר?' : ' לשירות?'], sub: 'שם קצר שהלקוח מבין ממנו מיד מה הוא מקבל.' },
-    { title: ['מה הלקוח ', 'מקבל', '?'], sub: 'הכריש מילא את המקובל בתחום. אפשר לשנות כל בחירה.' },
+    { title: ['מה הלקוח ', 'מקבל', '?'], sub: 'הכריש מילא את המקובל בתחום. אפשר לשנות, לבחור כמה, או להוסיף משלך ב"אחר".' },
     { title: ['מה הלקוח ', 'עובר', ', שלב אחרי שלב?'], sub: `${MIN_STEPS} עד ${MAX_STEPS} שלבים לפי הסדר. אפשר לערוך ולשנות את הסדר.` },
   ][q];
 }
@@ -171,13 +177,52 @@ function Tile({ on, onClick, icon, label, sub, badge }) {
   </button>`;
 }
 
-function ChoiceRow({ label, opts, value, onPick }) {
+function ChoiceRow({ row, value, custom = [], onChange, onAddCustom }) {
+  const [adding, setAdding] = useState(false);
+  const [text, setText] = useState('');
+  const opts = [...row.opts, ...custom.filter((c) => !row.opts.includes(c))];
+  const on = (o) => (row.multi ? (value || []).includes(o) : value === o);
+  const pick = (o) => {
+    if (!row.multi) return onChange(o);
+    const cur = value || [];
+    if (cur.includes(o)) return onChange(cur.filter((x) => x !== o));
+    if (row.only?.includes(o)) return onChange([o]);
+    onChange([...cur.filter((x) => !row.only?.includes(x)), o]);
+  };
+  const commit = () => {
+    const v = text.trim();
+    setAdding(false);
+    setText('');
+    if (!v) return;
+    onAddCustom(v);
+    if (!on(v)) pick(v);
+  };
   return html`<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line py-1.5 last:border-b-0">
-    <span class="w-[150px] shrink-0 text-[15px] font-bold text-ink">${label}</span>
-    <div class="flex flex-wrap gap-2" role="radiogroup" aria-label=${label}>
+    <span class="w-[150px] shrink-0 text-[15px] font-bold text-ink">
+      ${row.label}
+      ${row.multi && html`<small class="block text-[12px] font-semibold text-muted">אפשר לבחור כמה</small>`}
+    </span>
+    <div class="flex flex-1 flex-wrap items-center gap-2" role=${row.multi ? 'group' : 'radiogroup'} aria-label=${row.label}>
       ${opts.map(
-        (o) => html`<button key=${o} type="button" role="radio" aria-checked=${value === o} onClick=${() => onPick(o)} class=${cx('fb-chip !h-9', value === o && 'is-on')}>${o}</button>`,
+        (o) => html`<button key=${o} type="button" role=${row.multi ? 'checkbox' : 'radio'} aria-checked=${on(o)} onClick=${() => pick(o)} class=${cx('fb-chip !h-8 !px-3.5', on(o) && 'is-on')}>
+          ${row.multi && on(o) && html`<${Icon} name="check" size=${14} />`}${o}
+        </button>`,
       )}
+      ${adding
+        ? html`<input
+            autofocus
+            value=${text}
+            placeholder="מה עוד?"
+            aria-label=${`ערך משלך: ${row.label}`}
+            onInput=${(e) => setText(e.target.value)}
+            onBlur=${commit}
+            onKeyDown=${(e) => {
+              if (e.key === 'Enter') (e.preventDefault(), e.stopPropagation(), commit());
+              if (e.key === 'Escape') (setAdding(false), setText(''));
+            }}
+            class="h-8 w-[150px] rounded-full border-[1.5px] border-brand-600 bg-white px-3 text-[14px] outline-none ring-4 ring-brand-100"
+          />`
+        : html`<button type="button" onClick=${() => setAdding(true)} class="fb-chip !h-8 !border-dashed !px-3 !text-muted"><${Icon} name="plus" size=${14} />אחר</button>`}
     </div>
   </div>`;
 }
@@ -220,10 +265,17 @@ export function AnchorScreen({ anchor: a, set, q, pick }) {
     </div>`;
 
   if (q === 3)
-    return html`<${Panel} class="max-w-3xl !px-5 !py-2">
-      ${a.filled.attrs && html`<div class="pt-2"><${FilledBy} /></div>`}
+    return html`<${Panel} class="max-w-4xl !px-5 !py-1">
+      ${a.filled.attrs && html`<div class="pt-1.5"><${FilledBy} /></div>`}
       ${ATTRS[a.kind].map(
-        (r) => html`<${ChoiceRow} key=${r.key} label=${r.label} opts=${r.opts} value=${a.attrs[r.key]} onPick=${(o) => set({ attrs: { ...a.attrs, [r.key]: o }, filled: { ...a.filled, attrs: false } })} />`,
+        (r) => html`<${ChoiceRow}
+          key=${`${a.format}-${r.key}`}
+          row=${r}
+          value=${a.attrs[r.key]}
+          custom=${(a.custom || {})[r.key]}
+          onChange=${(v) => set({ attrs: { ...a.attrs, [r.key]: v }, filled: { ...a.filled, attrs: false } })}
+          onAddCustom=${(v) => set({ custom: { ...(a.custom || {}), [r.key]: [...((a.custom || {})[r.key] || []), v] } })}
+        />`,
       )}
     <//>`;
 
@@ -276,7 +328,7 @@ export function AnchorScreen({ anchor: a, set, q, pick }) {
 export function AnchorCard({ anchor: a, setTier, showTier }) {
   const f = anchorFormat(a);
   const hours = anchorHours(a);
-  const rows = a.kind ? ATTRS[a.kind].filter((r) => a.attrs[r.key]) : [];
+  const rows = a.kind ? ATTRS[a.kind].filter((r) => has(a.attrs[r.key])) : [];
   const empty = (t) => html`<span class="text-[14px] text-faint">${t}</span>`;
   return html`<div class="flex flex-col gap-3">
     <div>
@@ -290,7 +342,7 @@ export function AnchorCard({ anchor: a, setTier, showTier }) {
       <p class="font-display mt-0.5 text-[18px] font-extrabold leading-snug text-ink">${a.name.trim() || empty('השם יופיע כאן')}</p>
       ${rows.length
         ? html`<dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[13px]">
-            ${rows.map((r) => html`<dt key=${r.key} class="text-muted">${r.label.replace('?', '')}</dt><dd class="font-semibold text-ink">${a.attrs[r.key]}</dd>`)}
+            ${rows.map((r) => html`<dt key=${r.key} class="text-muted">${r.label.replace('?', '')}</dt><dd class="font-semibold text-ink">${show(a.attrs[r.key])}</dd>`)}
           </dl>`
         : null}
       ${a.steps.length && !showTier

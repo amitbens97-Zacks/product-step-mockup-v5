@@ -306,7 +306,7 @@ function App({ view, onViewChange }) {
     // The sample basket's premium program is the anchor, defined through its five questions.
     const sample = {
       kind: 'service', format: 'one', name: 'תוכנית ליווי 90 יום 1:1', tier: 'premium', filled: {},
-      attrs: { duration: '3 חודשים', sessions: '12', length: '60 דקות', where: 'משולב', who: 'אישי' },
+      attrs: { duration: '3 חודשים', sessions: '12', length: '60 דקות', where: ['זום', 'פרונטלי'], who: ['אישי'], extras: ['זמינות ב-WhatsApp', 'חומרי עבודה'] }, custom: {},
       steps: ['פגישת אבחון ומיפוי', 'אסטרטגיה כתובה ל-90 יום', 'הקמת הקמפיינים והתוכן', 'בקרה ושיפור כל שבועיים', 'סיכום ותוכנית להמשך'],
     };
     const list = scenarioProducts(id);
