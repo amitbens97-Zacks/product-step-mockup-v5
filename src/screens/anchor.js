@@ -154,7 +154,7 @@ export function anchorHead(q, a) {
   return [
     { title: ['מה ', 'מוכרים', ': מוצר או שירות?'], sub: 'שירות הוא הזמן והמומחיות שלך. מוצר הוא משהו שהלקוח מקבל ונשאר אצלו.' },
     { title: ['באיזו ', 'צורה', '?'], sub: 'מסודר לפי מה שמתאים לתחום שלך. הראשון הוא ההמלצה.' },
-    { title: ['איך ', 'קוראים', ` ל${what}?`], sub: 'שם קצר שהלקוח מבין ממנו מיד מה הוא מקבל.' },
+    { title: ['איך ', 'קוראים', a.kind === 'product' ? ' למוצר?' : ' לשירות?'], sub: 'שם קצר שהלקוח מבין ממנו מיד מה הוא מקבל.' },
     { title: ['מה הלקוח ', 'מקבל', '?'], sub: 'הכריש מילא את המקובל בתחום. אפשר לשנות כל בחירה.' },
     { title: ['מה הלקוח ', 'עובר', ', שלב אחרי שלב?'], sub: `${MIN_STEPS} עד ${MAX_STEPS} שלבים לפי הסדר. אפשר לערוך ולשנות את הסדר.` },
   ][q];
@@ -172,7 +172,7 @@ function Tile({ on, onClick, icon, label, sub, badge }) {
 }
 
 function ChoiceRow({ label, opts, value, onPick }) {
-  return html`<div class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line py-2.5 last:border-b-0">
+  return html`<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line py-1.5 last:border-b-0">
     <span class="w-[150px] shrink-0 text-[15px] font-bold text-ink">${label}</span>
     <div class="flex flex-wrap gap-2" role="radiogroup" aria-label=${label}>
       ${opts.map(
@@ -244,10 +244,10 @@ export function AnchorScreen({ anchor: a, set, q, pick }) {
     setDraft('');
   };
   return html`<${Panel} class="max-w-3xl !p-4 md:!px-5">
-    ${a.filled.steps && html`<div class="mb-2"><${FilledBy} /></div>`}
-    <ol class="flex flex-col gap-2">
+    ${a.filled.steps && html`<div class="mb-1.5"><${FilledBy} /></div>`}
+    <ol class="flex flex-col gap-1.5">
       ${steps.map(
-        (s, i) => html`<li key=${i} class="flex items-center gap-2 rounded-xl border border-line bg-white px-2 py-1.5">
+        (s, i) => html`<li key=${i} class="flex items-center gap-2 rounded-xl border border-line bg-white px-2 py-0.5">
           <span class="w-6 shrink-0 text-center text-[14px] font-bold text-brand-600 tabular-nums">${i + 1}</span>
           <input value=${s} aria-label=${`שלב ${i + 1}`} onInput=${(e) => setSteps(steps.map((x, k) => (k === i ? e.target.value : x)))} class="h-9 min-w-0 flex-1 bg-transparent text-[16px] font-semibold text-ink outline-none" />
           <${IconBtn} icon="arrow-up" label="למעלה" onClick=${() => move(i, -1)} disabled=${i === 0} class="disabled:opacity-30" />
@@ -268,12 +268,12 @@ export function AnchorScreen({ anchor: a, set, q, pick }) {
       />
       <${Button} variant="secondary" class="!h-10" disabled=${!draft.trim()} onClick=${addStep}>הוספה <${Icon} name="plus" size=${16} /><//>
     </div>`}
-    <p class="mt-2 text-[12px] font-semibold text-muted tabular-nums">${steps.length} מתוך ${MIN_STEPS} עד ${MAX_STEPS} שלבים</p>
+    <p class="mt-1.5 text-[12px] font-semibold text-muted tabular-nums">${steps.length} מתוך ${MIN_STEPS} עד ${MAX_STEPS} שלבים</p>
   <//>`;
 }
 
 // "המוצר המרכזי שלך": the side panel, a card that fills with every answer.
-export function AnchorCard({ anchor: a, setTier }) {
+export function AnchorCard({ anchor: a, setTier, showTier }) {
   const f = anchorFormat(a);
   const hours = anchorHours(a);
   const rows = a.kind ? ATTRS[a.kind].filter((r) => a.attrs[r.key]) : [];
@@ -293,14 +293,16 @@ export function AnchorCard({ anchor: a, setTier }) {
             ${rows.map((r) => html`<dt key=${r.key} class="text-muted">${r.label.replace('?', '')}</dt><dd class="font-semibold text-ink">${a.attrs[r.key]}</dd>`)}
           </dl>`
         : null}
-      ${a.steps.length
+      ${a.steps.length && !showTier
         ? html`<ol class="mt-2 border-t border-line pt-2 text-[13px] text-ink">
             ${a.steps.slice(0, MAX_STEPS).map((s, i) => html`<li key=${i} class="truncate"><span class="text-brand-600 tabular-nums">${i + 1}.</span> ${s}</li>`)}
           </ol>`
         : null}
       ${hours != null && html`<p class="mt-2 flex items-center gap-1.5 rounded-lg bg-brand-50 px-2 py-1 text-[12px] font-bold text-brand-600"><${Icon} name="clock" size=${14} /> כ-${hours} שעות עבודה · נכנס לתמחור</p>`}
+      <p class="mt-2 text-[12px] leading-snug text-muted"><b class="text-ink">ממשיך איתך ל:</b> תמחור · הצעה מנצחת · דף נחיתה</p>
     </div>
-    ${a.name.trim() &&
+    ${showTier &&
+    a.name.trim() &&
     html`<div class="fb-panel !p-3">
       <p class="mb-1.5 text-[12px] font-bold text-muted">איפה הוא בסל?</p>
       <div class="flex flex-wrap gap-1.5">
@@ -311,6 +313,5 @@ export function AnchorCard({ anchor: a, setTier }) {
         )}
       </div>
     </div>`}
-    <p class="text-[12px] leading-relaxed text-muted"><b class="text-ink">ממשיך איתך ל:</b> תמחור · הצעה מנצחת · דף נחיתה</p>
   </div>`;
 }

@@ -58,7 +58,7 @@ const OPENING_MESSAGE = 'בשלב הזה נבנה יחד את סל המוצרי�
 const HEAD = [
   { eyebrow: 'חומרי הגלם', title: ['מה כבר ', 'ידוע', ' על העסק?'], sub: 'מילאנו מהשלבים הקודמים. נעבור, נדייק ונאשר, ועל זה נבנה את המוצרים.', next: 'המשך' },
   { eyebrow: 'המוצר המרכזי', title: ['', '', ''], sub: '', next: 'המשך' },
-  { eyebrow: 'סל המוצרים', title: ['בונים ', 'סביבו', ' את הסל'], sub: 'מה מוביל אל המוצר המרכזי, ומה בא אחריו. אף קטגוריה לא חובה, ואפשר להמשיך גם עם מוצר אחד.', next: 'המשך' },
+  { eyebrow: 'סל המוצרים', title: ['בונים ', 'סביבו', ' את הסל'], sub: 'מה מוביל אל המוצר המרכזי, ומה בא אחריו. אף קטגוריה לא חובה.', next: 'המשך' },
   { eyebrow: 'תמחור', title: ['', 'מחיר', ' לכל מוצר'], sub: 'מחיר ועלות לכל מוצר, ונראה מיד כמה נשאר לך.', next: 'המשך' },
   { eyebrow: 'תעודת הזהות המוצרית', title: ['ככה נראה ', 'סל המוצרים', ' שלך'], sub: '', next: 'סיום השלב' },
 ];
@@ -156,7 +156,6 @@ function App({ view, onViewChange }) {
     setUndo(null);
     setScreen(i);
     setMaxReached((m) => Math.max(m, i));
-    if (i === ANCHOR && screen > ANCHOR) setAnchorQ(0);
     setStuck(false);
     canvas.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -335,13 +334,17 @@ function App({ view, onViewChange }) {
   // The side panel shows only once there is something in the basket to show.
   const showBasket = working && screen >= ANCHOR && screen < SUMMARY;
   const reason = !nextDisabled ? null : anchorWhy || 'צריך לפחות מוצר אחד כדי להמשיך';
+  // Only the core product in the basket: say plainly that one product is enough.
+  const onlyAnchor = working && screen === BASKET && products.length === 1 && products[0].source === 'anchor';
   const hint = opening
     ? ''
     : !working
       ? `הבא: ${STEP.next.name} · כ-${STEP.next.minutes} דקות`
       : screen === 0
         ? 'המשך מאשר את כל הנתונים'
-        : '';
+        : onlyAnchor
+          ? 'אפשר להמשיך עם מוצר אחד, ולהוסיף עוד כשהעסק יגדל'
+          : '';
 
   const tools = html`<span class="rounded border border-warn/40 bg-warn-50 px-1.5 py-0.5 text-[12px] font-bold text-warn max-lg:hidden">מוק-אפ v5</span>
     ${!EMBED && !window.FB_NO_PHONE_FRAME && html`<${ViewToggle} view=${view} onChange=${switchView} />`}
@@ -407,7 +410,7 @@ function App({ view, onViewChange }) {
 
       ${showBasket &&
       html`<aside class="no-print hidden w-[330px] shrink-0 overflow-y-auto thin-scroll py-8 pe-8 ps-2 xl:block">
-        ${screen === ANCHOR ? html`<${AnchorCard} anchor=${anchor} setTier=${(t) => setAnchorField({ tier: t })} />` : html`<${BasketPanel} products=${products} />`}
+        ${screen === ANCHOR ? html`<${AnchorCard} anchor=${anchor} setTier=${(t) => setAnchorField({ tier: t })} showTier=${anchorQ === ANCHOR_QUESTIONS - 1} />` : html`<${BasketPanel} products=${products} />`}
       </aside>`}
     </div>
 
@@ -429,7 +432,7 @@ function App({ view, onViewChange }) {
           setUndo(null);
         }}
         reason=${reason}
-        save=${working ? save : ''}
+        save=${working && !onlyAnchor ? save : ''}
         hint=${hint}
       />`}
       primary=${html`<${PrimaryButton} label=${opening ? 'מתחילים' : working ? h.next : 'לשלב הבא'} onClick=${next} disabled=${nextDisabled} check=${working && screen === SUMMARY} />`}
@@ -442,7 +445,7 @@ function App({ view, onViewChange }) {
         <div class="mb-1 flex justify-end">
           <button type="button" aria-label="סגירה" class="rounded-lg p-1.5 text-muted hover:bg-white cursor-pointer" onClick=${() => setSheet(false)}><${Icon} name="x" size=${18} /></button>
         </div>
-        ${screen === ANCHOR ? html`<${AnchorCard} anchor=${anchor} setTier=${(t) => setAnchorField({ tier: t })} />` : html`<${BasketPanel} products=${products} />`}
+        ${screen === ANCHOR ? html`<${AnchorCard} anchor=${anchor} setTier=${(t) => setAnchorField({ tier: t })} showTier=${anchorQ === ANCHOR_QUESTIONS - 1} />` : html`<${BasketPanel} products=${products} />`}
       </div>
     </div>`}
 
