@@ -204,8 +204,13 @@ function App({ view, onViewChange }) {
 
   // ?scenario=full (or any id from the developer panel) opens straight on the summary with a sample basket.
   useEffect(() => {
-    const id = new URLSearchParams(location.search).get('scenario');
-    if (id) loadScenario(id);
+    // ?screen=1|2 opens that screen with the sample basket, ?done=1 the finish screen (for review screenshots).
+    const qs = new URLSearchParams(location.search);
+    const id = qs.get('scenario');
+    if (id) loadScenario(id, true);
+    const at = Number(qs.get('screen'));
+    if (id && at >= 0 && at < 3 && qs.has('screen')) go(at);
+    if (id && qs.has('done')) finish();
   }, []);
 
   // Enter continues (not inside a multi-line field or on a focused button).
