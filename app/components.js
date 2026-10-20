@@ -238,10 +238,10 @@ export function WhyNote({ children }) {
 // ---------- The business partner ----------
 
 // A message from the partner on the page, as a white note.
-export function PartnerNote({ title = 'הצעה לתשובה', children, action, tilt = -1, class: cls = '' }) {
+export function PartnerNote({ title = 'הצעה לתשובה', children, action, tilt = -1, class: cls = '', mood = 'calm' }) {
   return html`<${Note} tone="white" tilt=${tilt} class=${cx('slide-in', cls)}>
     <span class="mb-1.5 flex items-center gap-2">
-      <${SharkAvatar} size=${34} />
+      <${SharkAvatar} size=${34} mood=${mood} />
       <span><b class="font-display">${PARTNER.name}</b><br /><span class="fb-meta">${title}</span></span>
     </span>
     <div class="text-[16px] leading-relaxed">${children}</div>
@@ -249,11 +249,20 @@ export function PartnerNote({ title = 'הצעה לתשובה', children, action,
   <//>`;
 }
 
-// The shark until it has an illustration: a circle with a pencil fish (fb-avatar).
-export function SharkAvatar({ size = 46 }) {
-  return html`<span class="fb-avatar pointer-events-none" style=${{ width: `${size}px`, height: `${size}px` }} aria-hidden="true">
-    <${Icon} name=${PARTNER.icon} size=${Math.round(size * 0.5)} />
-  </span>`;
+// The shark icon (FlowBiz shark icon guide): the file already holds its own round frame,
+// filled edge to edge; at 40px and below the simpler "-sm" drawing. Moods:
+// calm (default), happy (step finish, savings), thinking (while the AI works),
+// alert (a business warning). Decorative: the name is always written beside it.
+export function SharkAvatar({ size = 46, mood = 'calm' }) {
+  const file = `assets/shark/shark-${mood}${size <= 40 ? '-sm' : ''}.svg`;
+  return html`<img
+    src=${file}
+    alt=""
+    aria-hidden="true"
+    draggable="false"
+    class="pointer-events-none block shrink-0 select-none rounded-full bg-white"
+    style=${{ width: `${size}px`, height: `${size}px`, border: '2px solid #fff', boxShadow: '0 0 0 2px #8fb3ef' }}
+  />`;
 }
 
 export function FillButton({ onClick, children = 'להכניס לתשובה' }) {
@@ -273,7 +282,7 @@ export function FilledBy({ onUndo }) {
 const POS_KEY = 'flowbiz-v5-partner-pos';
 const HIT = 'button, a, input, textarea, select, [role="button"], [role="tab"], [role="checkbox"], .fb-btn, .fb-chip, .fb-tile, .fb-field, .fb-note, .fb-panel';
 
-export function PartnerBubble({ message, unread, onRead, action }) {
+export function PartnerBubble({ message, unread, onRead, action, mood = 'calm' }) {
   const el = useRef();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(() => {
@@ -367,8 +376,8 @@ export function PartnerBubble({ message, unread, onRead, action }) {
     onPointerUp=${up}
     onKeyDown=${(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), e.stopPropagation(), toggle())}
   >
-    <${SharkAvatar} />
-    <span class="max-md:hidden"><b>${PARTNER.name}</b><small>${unread ? 'יש לי הצעה' : PARTNER.role}</small></span>
+    <${SharkAvatar} mood=${mood} />
+    <span class="max-md:hidden"><b>${PARTNER.name}</b><small>${mood === 'thinking' ? 'מכין הצעות...' : unread ? 'יש לי הצעה' : PARTNER.role}</small></span>
     ${unread && html`<span class="fb-badge" style="left:auto; right:36px">1</span>`}
     ${open &&
     html`<div
@@ -376,7 +385,7 @@ export function PartnerBubble({ message, unread, onRead, action }) {
       onPointerDown=${(e) => e.stopPropagation()}
       onPointerUp=${(e) => e.stopPropagation()}
     >
-      <${PartnerNote} title=${PARTNER.role} action=${action}>
+      <${PartnerNote} title=${PARTNER.role} action=${action} mood=${mood}>
         <${Typed} key=${message} id=${message} text=${message} />
       <//>
     </div>`}

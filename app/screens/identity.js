@@ -5,10 +5,15 @@
 // from the shark. Then the finish screen: the badge note, the money saved, notebook
 // confetti and what we did with the basket.
 import { html, useState, useEffect, Icon, PencilCheck, PencilLine, cx, money, pct, parseNum, profitOf, confetti } from '../lib.js';
-import { InlineEdit, Panel, PartnerNote, Note, Mark } from '../components.js';
+import { InlineEdit, Panel, PartnerNote, Note, Mark, SharkAvatar } from '../components.js';
 import { Funnel, tiersOf } from '../funnel.js';
 import { CATEGORIES, CATEGORY_ORDER, STEP, BUSINESS } from '../data.js';
 import { CAT_STYLE } from '../theme.js';
+
+// The shark's note on the basket, and its mood: alert for a business warning.
+export function partnerMood(products) {
+  return products.map(profitOf).some((r) => r && !r.free && r.margin != null && r.margin < 35) ? 'alert' : 'calm';
+}
 
 export function partnerTake(products) {
   const weak = products
@@ -72,7 +77,7 @@ export function IdentityScreen({ products, setProducts }) {
       </div>
     </article>
 
-    <${PartnerNote} title="הערה על הסל" tilt=${1}>${partnerTake(products)}<//>
+    <${PartnerNote} title="הערה על הסל" tilt=${1} mood=${partnerMood(products)}>${partnerTake(products)}<//>
 
     ${openTier &&
     html`<div class="fixed inset-0 z-50">
@@ -136,7 +141,7 @@ export function DoneView({ products, stage }) {
         <span class="fb-eyebrow justify-center">שלב ${STEP.stepNo} הושלם</span>
         <h1 class="fb-h2">סל המוצרים <${Mark}>מוכן<//></h1>
         <span class="fb-win tabular-nums">+${money(STEP.save)}<${PencilLine} color="#12805c" class="absolute inset-x-0 -bottom-1 h-3 w-full" /></span>
-        <span class="text-muted">יועץ עסקי היה גובה על זה ${money(STEP.save)}. בנית את זה בעצמך!</span>
+        <span class="flex items-center justify-center gap-2 text-muted"><${SharkAvatar} size=${34} mood="happy" />יועץ עסקי היה גובה על זה ${money(STEP.save)}. בנית את זה בעצמך!</span>
         <span class="fb-boxes">
           ${STEP.chapterSteps.map((s, i) => html`<i key=${s} title=${s}>${i < doneSteps ? html`<${PencilCheck} size=${18} color="#0038b8" />` : null}</i>`)}
           ${total - doneSteps === 1 ? 'עוד שלב אחד לסוף הפרק' : `${doneSteps} מתוך ${total} שלבים`}

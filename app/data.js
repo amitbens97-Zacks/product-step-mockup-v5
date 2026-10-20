@@ -17,9 +17,8 @@ export const STEP = {
   chapterSteps: ['בניית סל מוצרים', 'צייד הלקוחות'],
 };
 
-// The business partner: one character, the shark. Until it has an illustration it is a
-// circle with a pencil fish icon (fb-avatar in the design system).
-export const PARTNER = { name: 'הכריש', role: 'השותף העסקי', icon: 'fish' };
+// The business partner: one character, the shark (assets/shark, see SharkAvatar).
+export const PARTNER = { name: 'הכריש', role: 'השותף העסקי' };
 
 export const BUSINESS = {
   ownerName: 'דניאל כהן',

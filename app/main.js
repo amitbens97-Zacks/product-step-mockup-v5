@@ -115,6 +115,7 @@ function App({ view, onViewChange }) {
   const [dismissed, setDismissed] = useState(() => from('dismissed', []));
   const [anchor, setAnchor] = useState(() => from('anchor', emptyAnchor()));
   const [anchorQ, setAnchorQ] = useState(() => from('anchorQ', 0));
+  const [thinking, setThinking] = useState(false); // the AI is preparing suggestions: the shark thinks
   const [doneStage, setDoneStage] = useState(() => (from('doneStage', -1) >= 3 ? 3 : -1)); // -1 not finished, 0..3 progress
   const [save, setSave] = useState('');
   const [undo, setUndo] = useState(null);
@@ -392,7 +393,7 @@ function App({ view, onViewChange }) {
                 undoFill=${undoFill}
               />`}
               ${screen === ANCHOR && html`<${AnchorScreen} anchor=${anchor} set=${setAnchorField} q=${anchorQ} pick=${pickAnchor} />`}
-              ${screen === BASKET && html`<${CatalogScreen} products=${products} setProducts=${setProducts} dismissed=${dismissed} setDismissed=${setDismissed} anchor=${anchor} />`}
+              ${screen === BASKET && html`<${CatalogScreen} products=${products} setProducts=${setProducts} dismissed=${dismissed} setDismissed=${setDismissed} anchor=${anchor} onThinking=${setThinking} />`}
               ${screen === 3 &&
               html`<${PricingScreen} products=${products} setProducts=${setProducts} />`}
               ${screen === SUMMARY &&
@@ -407,6 +408,7 @@ function App({ view, onViewChange }) {
           unread=${unread}
           onRead=${() => setRead((s) => new Set(s).add(msgKey))}
           action=${partnerAction}
+          mood=${thinking && screen === BASKET ? 'thinking' : 'calm'}
         />`}
       </main>
 

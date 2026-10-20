@@ -60,7 +60,7 @@ function ProductLine({ n, product, onChange, onRemove, autoFocus }) {
   </li>`;
 }
 
-export function CatalogScreen({ products, setProducts, dismissed, setDismissed, anchor }) {
+export function CatalogScreen({ products, setProducts, dismissed, setDismissed, anchor, onThinking }) {
   const [tab, setTab] = useState('entry');
   const around = anchorSuggestions(anchor);
   const [generating, setGenerating] = useState(!generatedOnce);
@@ -68,11 +68,16 @@ export function CatalogScreen({ products, setProducts, dismissed, setDismissed, 
 
   useEffect(() => {
     if (generatedOnce) return;
+    onThinking?.(true);
     const t = setTimeout(() => {
       generatedOnce = true;
       setGenerating(false);
+      onThinking?.(false);
     }, 1400);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      onThinking?.(false);
+    };
   }, []);
 
   const cat = CATEGORIES[tab];
