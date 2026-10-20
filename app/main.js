@@ -257,6 +257,8 @@ function App({ view, onViewChange }) {
     if (id) loadScenario(id, true);
     const at = Number(qs.get('screen'));
     if (id && at >= 0 && at < SUMMARY && qs.has('screen')) go(at);
+    // &q=0..4 opens a question of the core product part.
+    if (id && qs.has('q')) setAnchorQ(Math.min(Math.max(Number(qs.get('q')) || 0, 0), ANCHOR_QUESTIONS - 1));
     if (id && qs.has('done')) finish();
   }, []);
 

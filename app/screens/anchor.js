@@ -137,7 +137,7 @@ export function anchorSuggestions(a) {
   if (!a?.name?.trim()) return {};
   const n = a.name.trim();
   const out = {
-    entry: { id: 'a-entry', name: 'שיחת היכרות של 30 דקות', description: `שיחה חינמית שבסופה ברור אם ${n} מתאים` },
+    entry: { id: 'a-entry', name: 'שיחת היכרות של 30 דקות', description: `שיחה חינמית לפני ההחלטה על ${n}` },
     bridge: { id: 'a-bridge', name: `סדנה של 3 שעות: טעימה מ${n}`, description: 'ניצחון מהיר שמכין את הדרך לשירות המלא' },
     premium: { id: 'a-premium', name: `${n} בליווי צמוד`, description: 'אותו תהליך, עם זמינות גבוהה יותר' },
     recurring: { id: 'a-recurring', name: `ליווי המשך חודשי אחרי ${n}`, description: 'מפגש בחודש ובקרה שוטפת למי שסיים' },
