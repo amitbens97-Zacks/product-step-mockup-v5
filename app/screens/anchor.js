@@ -75,6 +75,8 @@ const DEFAULTS = {
 
 const show = (v) => (Array.isArray(v) ? v.join(' · ') : v);
 const has = (v) => (Array.isArray(v) ? v.length > 0 : !!v);
+// An input that opens on a tap takes the focus once (autofocus only works on page load).
+const focusOnce = (el) => el && !el.dataset.focused && ((el.dataset.focused = '1'), setTimeout(() => el.focus()));
 
 const STEPS = {
   one: ['פגישת אבחון ומיפוי', 'אסטרטגיה כתובה ל-90 יום', 'הקמת הקמפיינים והתוכן', 'בקרה ושיפור כל שבועיים', 'סיכום ותוכנית להמשך'],
@@ -87,13 +89,39 @@ const STEPS = {
   club: ['הצטרפות', 'תוכן חדש בתחילת כל חודש', 'מפגש שאלות ותשובות'],
 };
 
+// A form typed in by hand ("צורה אחרת"): plain defaults per kind, to adjust in questions 4 and 5.
+const OTHER = {
+  service: {
+    attrs: { duration: 'חודש', sessions: '4', length: '60 דקות', where: ['זום'], who: ['אישי'], extras: [] },
+    steps: ['שיחת היכרות ותיאום ציפיות', 'העבודה עצמה', 'סיכום ומה הלאה'],
+  },
+  product: {
+    attrs: { units: '10', media: ['PDF'], access: 'לתמיד', support: ['בלי'], extras: [] },
+    steps: ['קבלת המוצר', 'שימוש ראשון', 'תוצאה ראשונה'],
+  },
+};
+const otherNames = (label) => [`${label} לעסקים קטנים`, `${label}: שיטת 90 הימים`, `${label} למתחילים`];
+
 const MIN_STEPS = 3;
 const MAX_STEPS = 5;
 
-export const emptyAnchor = () => ({ kind: null, format: null, name: '', attrs: {}, custom: {}, steps: [], tier: 'premium', filled: {} });
+export const emptyAnchor = () => ({ kind: null, format: null, otherFormat: '', name: '', attrs: {}, custom: {}, steps: [], tier: 'premium', filled: {} });
 
 export function anchorFormat(a) {
-  return a.kind && a.format ? FORMATS[a.kind].find((f) => f.id === a.format) : null;
+  if (!a.kind || !a.format) return null;
+  if (a.format === 'other') return { id: 'other', label: a.otherFormat, sub: 'הצורה שלך' };
+  return FORMATS[a.kind].find((f) => f.id === a.format);
+}
+
+// The forms to choose from: the four for this kind, and the one typed in, if any.
+function formatsFor(a) {
+  return a.otherFormat ? [...FORMATS[a.kind], { id: 'other', label: a.otherFormat, sub: 'הצורה שלך' }] : FORMATS[a.kind];
+}
+
+// Choosing a form fills questions 4 and 5 in advance.
+function formatSeed(a, id) {
+  const base = id === 'other' ? OTHER[a.kind] : { attrs: DEFAULTS[id], steps: STEPS[id] };
+  return { format: id, attrs: { ...base.attrs }, steps: [...base.steps], filled: { attrs: true, steps: true } };
 }
 
 // Work hours for a service: sessions x session length. A product has a fixed cost instead.
@@ -159,7 +187,7 @@ export function anchorHead(q, a) {
   const what = a.kind === 'product' ? 'המוצר' : 'השירות';
   return [
     { title: ['מה ', 'מוכרים', ': מוצר או שירות?'], sub: 'שירות הוא הזמן והמומחיות שלך. מוצר הוא משהו שהלקוח מקבל ונשאר אצלו.' },
-    { title: ['באיזו ', 'צורה', '?'], sub: 'מסודר לפי מה שמתאים לתחום שלך. הראשון הוא ההמלצה.' },
+    { title: ['באיזו ', 'צורה', '?'], sub: 'מסודר לפי מה שמתאים לתחום שלך. הראשון הוא ההמלצה. אין מה שמתאים? "צורה אחרת".' },
     { title: ['איך ', 'קוראים', a.kind === 'product' ? ' למוצר?' : ' לשירות?'], sub: 'שם קצר שהלקוח מבין ממנו מיד מה הוא מקבל.' },
     { title: ['מה הלקוח ', 'מקבל', '?'], sub: 'הכריש מילא את המקובל בתחום. אפשר לשנות, לבחור כמה, או להוסיף משלך ב"אחר".' },
     { title: ['מה הלקוח ', 'עובר', ', שלב אחרי שלב?'], sub: `${MIN_STEPS} עד ${MAX_STEPS} שלבים לפי הסדר. אפשר לערוך ולשנות את הסדר.` },
@@ -210,7 +238,7 @@ function ChoiceRow({ row, value, custom = [], onChange, onAddCustom }) {
       )}
       ${adding
         ? html`<input
-            autofocus
+            ref=${focusOnce}
             value=${text}
             placeholder="מה עוד?"
             aria-label=${`ערך משלך: ${row.label}`}
@@ -227,27 +255,60 @@ function ChoiceRow({ row, value, custom = [], onChange, onAddCustom }) {
   </div>`;
 }
 
+// "צורה אחרת": a form of its own, typed in. It joins the tiles as the chosen one.
+function OtherFormat({ kind, onAdd }) {
+  const [adding, setAdding] = useState(false);
+  const [text, setText] = useState('');
+  const commit = () => {
+    const v = text.trim();
+    if (!v) return;
+    setAdding(false);
+    setText('');
+    onAdd(v);
+  };
+  if (!adding)
+    return html`<button type="button" onClick=${() => setAdding(true)} class="fb-chip !h-9 w-fit !border-dashed !px-3.5 !text-muted"><${Icon} name="plus" size=${16} />צורה אחרת</button>`;
+  return html`<div class="flex max-w-xl gap-2">
+    <input
+      ref=${focusOnce}
+      value=${text}
+      placeholder=${kind === 'product' ? 'לדוגמה: אפליקציה, ספר, כרטיס לאירוע' : 'לדוגמה: ריטריט, הרצאה, טיפול זוגי'}
+      aria-label="צורה אחרת"
+      onInput=${(e) => setText(e.target.value)}
+      onKeyDown=${(e) => {
+        if (e.key === 'Enter') (e.preventDefault(), e.stopPropagation(), commit());
+        if (e.key === 'Escape') (setAdding(false), setText(''));
+      }}
+      class="h-10 min-w-0 flex-1 rounded-xl border-[1.5px] border-brand-600 bg-white px-3 text-[16px] outline-none ring-4 ring-brand-100"
+    />
+    <${Button} variant="secondary" class="!h-10" disabled=${!text.trim()} onClick=${commit}>הוספה <${Icon} name="plus" size=${16} /><//>
+  </div>`;
+}
+
 export function AnchorScreen({ anchor: a, set, q, pick }) {
   const [draft, setDraft] = useState('');
   const what = a.kind === 'product' ? 'המוצר' : 'השירות';
 
   if (q === 0)
     return html`<div class="grid max-w-3xl gap-3 sm:grid-cols-2" role="radiogroup" aria-label="מוצר או שירות">
-      ${KINDS.map((k) => html`<${Tile} key=${k.id} on=${a.kind === k.id} icon=${k.icon} label=${k.label} sub=${k.sub} onClick=${() => pick({ kind: k.id, format: a.kind === k.id ? a.format : null })} />`)}
+      ${KINDS.map((k) => html`<${Tile} key=${k.id} on=${a.kind === k.id} icon=${k.icon} label=${k.label} sub=${k.sub} onClick=${() => pick(a.kind === k.id ? { kind: k.id } : { kind: k.id, format: null, otherFormat: '' })} />`)}
     </div>`;
 
   if (q === 1)
-    return html`<div class="grid max-w-4xl grid-cols-2 gap-3 md:grid-cols-4" role="radiogroup" aria-label=${`הצורה של ${what}`}>
-      ${FORMATS[a.kind].map(
+    return html`<div class="flex max-w-4xl flex-col gap-3">
+      <div class="grid grid-cols-2 gap-3 md:grid-cols-4" role="radiogroup" aria-label=${`הצורה של ${what}`}>
+      ${formatsFor(a).map(
         (f, i) => html`<${Tile}
           key=${f.id}
           on=${a.format === f.id}
           label=${f.label}
           sub=${f.sub}
           badge=${i === 0 ? 'מומלץ לתחום שלך' : null}
-          onClick=${() => pick({ format: f.id, attrs: { ...DEFAULTS[f.id] }, steps: [...STEPS[f.id]], filled: { attrs: true, steps: true } })}
+          onClick=${() => pick(formatSeed(a, f.id))}
         />`,
       )}
+      </div>
+      <${OtherFormat} kind=${a.kind} onAdd=${(v) => pick({ otherFormat: v, ...formatSeed(a, 'other') })} />
     </div>`;
 
   if (q === 2)
@@ -259,7 +320,7 @@ export function AnchorScreen({ anchor: a, set, q, pick }) {
       <div class="fb-sugg !gap-2 !p-3.5">
         <p class="fb-sugg-title"><${Icon} name="pencil" size=${16} class="text-brand-600" /> הצעות הכריש</p>
         <div class="flex flex-wrap gap-2">
-          ${NAMES[a.format].map((n) => html`<button key=${n} type="button" class=${cx('fb-chip', a.name === n && 'is-on')} onClick=${() => set({ name: n })}>${n}</button>`)}
+          ${(NAMES[a.format] || otherNames(a.otherFormat)).map((n) => html`<button key=${n} type="button" class=${cx('fb-chip', a.name === n && 'is-on')} onClick=${() => set({ name: n })}>${n}</button>`)}
         </div>
       </div>
     </div>`;
